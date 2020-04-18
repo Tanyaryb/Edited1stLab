@@ -1,0 +1,742 @@
+#pragma once
+#include <iostream>
+
+typedef int dataType;   // чтоб можно было выбрать любой тип хранения данных за секунду
+enum color { RED, BLACK };
+
+
+class List
+{
+private:
+	struct NodeList
+	{
+	public:
+		NodeList* next = 0;
+		dataType data;
+	};
+	NodeList* head = 0;
+	NodeList* tail = 0;
+public:
+	void Next()
+	{
+		head = head->next;
+	}
+	dataType getData()
+	{
+		return head->data;
+	}
+	bool isEmpty()
+	{
+		if (head) return false;
+		else return true;
+	}
+	void push_back(dataType data)
+	{
+		if (tail)
+		{
+			tail->next = new NodeList;
+			tail = tail->next;
+			tail->data = data;
+		}
+		else
+		{
+			tail = head = new NodeList;
+			tail->data = data;
+		}
+	}
+	void remove(dataType data)
+	{
+		NodeList* temp1 = head;
+		if (temp1->data == data)
+		{
+			delete temp1;
+			head = NULL;
+			return;
+		}
+		while (temp1->next->data != data)
+		{
+			temp1 = temp1->next;
+		}
+		if (temp1->next == tail)
+		{
+			delete temp1->next;
+			temp1->next = NULL;
+			return;
+		}
+		NodeList* temp2 = temp1->next->next;
+		delete temp1->next;
+		temp1->next = temp2;
+	}
+};
+
+struct Node
+{
+	Node* left;
+	Node* right;
+	Node* parent;
+	color color;
+	dataType data;
+	dataType key;
+};
+
+class Map
+{
+private:
+	class RBtree
+	{
+	private:
+		Node* root = 0;
+		void insertfix(Node*);			// балансировка после ввода узла
+		void leftrotate(Node*);			// левый  поворот
+		void rightrotate(Node*);		// правый поворот
+		Node* successor(Node*);			// балансировка
+		void delfix(Node*);				// балансировка после удаления узла
+		bool display(Node*);			// вывод узла
+		void cl(Node* p);
+		void get_values(Node* node, List& list);
+		void get_keys(Node* node, List& list);
+		bool searchbool(dataType x);	// есть такой узел в дереве или нет, дополнение поиска
+		void insertpriv(Node* t);			// ввод узла в дерево
+		void Destruct(Node* current);	// дополнение к деструктору
+	public:
+		RBtree() :root(nullptr) {};		// конструктор
+		~RBtree();						// деструктор
+		void insert(dataType inskey, dataType insdata);			// метод добавления узла в дерево
+		bool find(dataType data);						// метод поиска в дереве
+		void remove(dataType x);							// метод удаления узла из дерева
+		bool print();									// метод вывода всего дерева
+		void clear();									// метод очищения ассоциативного массива
+		List get_values();
+		List get_keys();
+	};
+	RBtree tree;
+public:
+	void insert(dataType inskey, dataType insdata);			// метод добавления узла в дерево
+	bool find(dataType data);						// метод поиска в дереве
+	void remove(dataType x);							// метод удаления узла из дерева
+	bool print();									// метод вывода всего дерева
+	List get_values();								// метод вывода значений
+	List get_keys();								// метод вывода ключей
+	void clear();									// метод очищения ассоциативного массива
+};
+
+
+void Map::insert(dataType inskey, dataType insdata)
+{
+	tree.insert(inskey, insdata);
+}
+
+bool Map::find(dataType data)
+{
+	return tree.find(data);
+}
+
+void Map::remove(dataType x)
+{
+	tree.remove(x);
+}
+
+bool Map::print()
+{
+	return tree.print();
+}
+
+void Map::RBtree::get_values(Node *node, List &list)
+{
+	if (root == NULL) return;
+	if (node->left) get_values(node->left, list);
+	if (node->right) get_values(node->right, list);
+	list.push_back(node->data);
+}
+
+void Map::RBtree::get_keys(Node* node, List& list)
+{
+	if (root == NULL) return;
+	if (node->left) get_keys(node->left, list);
+	if (node->right) get_keys(node->right, list);
+	list.push_back(node->key);
+}
+
+List Map::RBtree::get_values()
+{
+	List list;
+	get_values(root, list);
+	return list;
+}
+
+List Map::get_values()
+{
+	return tree.get_values();
+}
+
+List Map::RBtree::get_keys()
+{
+	List list;
+	get_keys(root, list);
+	return list;
+}
+
+List Map::get_keys()
+{
+	return tree.get_keys();
+}
+
+void Map::clear()
+{
+	tree.clear();
+}
+
+Map::RBtree::~RBtree()   // деструктор
+{
+	if (root != NULL)
+	{
+		Destruct(root);  // потому что нельзя вызвать деструктор рекурсивно
+	}
+}
+
+void Map::RBtree::Destruct(Node* current)  // для деструктора -- рекурсивное удаление дерева
+{
+	if (current != nullptr)
+	{
+		Destruct(current->left);
+		Destruct(current->right);
+		delete current;
+	}
+}
+
+void Map::RBtree::insert(dataType inskey, dataType insdata)  // создание узла -- данные вводятся с клавиатуры
+{
+	Node* temp = new Node;
+	temp->data = insdata;
+	temp->key = inskey;
+	temp->left = NULL;
+	temp->right = NULL;
+	temp->color = RED;
+	if (searchbool(temp->data))
+	{
+		delete temp;
+	}
+	else
+	{
+		insertpriv(temp);
+	}
+}
+
+void Map::RBtree::insertpriv(Node* temp)	// t -- вставляемый в деререво узел
+{
+	Node* rootCopy = root, * list = NULL;
+	if (root == NULL)  // если дерево не существует, то добавляемый узел становится корнем
+	{
+		root = temp;
+		temp->parent = NULL;
+	}
+	else  // если дерево существует... находим место куда вставить узел
+	{
+		while (rootCopy != NULL)	// смотрим в дерево, пока не дошли до листов
+		{
+			list = rootCopy;
+			if (rootCopy->data < temp->data)		// если вставляемый больше корня/узла то ГО в правое поддерево
+				rootCopy = rootCopy->right;
+			else								// иначе ГО в левое поддерево
+				rootCopy = rootCopy->left;
+		}
+		temp->parent = list;						// q усонавливает temp
+		if (list->data < temp->data)				// исходя из значения temp, ставим либо правым
+			list->right = temp;
+		else								// либо левым потомком q
+			list->left = temp;
+	}
+	insertfix(temp);	// балансируем, перекрашиваем, делаем повороты...
+}
+
+void Map::RBtree::insertfix(Node* temp)
+{
+	Node* uncle = NULL;
+	if (root == temp) // если в дереве только данный узел красим в ченое и все
+	{
+		temp->color = BLACK;
+		temp->parent = NULL;
+		return;
+	}
+	// иначе
+	while (temp->parent != NULL && temp->parent->color == RED)
+	{
+		Node* grandpa = temp->parent->parent;	// дед
+		if (grandpa->left == temp->parent)		// если отец temp левый потомок деда
+		{
+			if (grandpa->right != NULL)		// и при этом нет правого потомка
+			{
+				uncle = grandpa->right;		// тогда дядя правый потомок деда
+				if (uncle->color == RED)	// и если красный
+				{
+					temp->parent->color = BLACK;	// то отец temp -- черный
+					uncle->color = BLACK;		// дядя тоже черный
+					grandpa->color = RED;		// дед красный
+					temp = grandpa;
+				}
+			}
+			else  // если оба потомка существуют...
+			{
+				if (temp->parent->right == temp)  // если temp правый потомок отца, тогда левый поворот от отца
+				{
+					temp = temp->parent;
+					leftrotate(temp);
+				}
+				temp->parent->color = BLACK;	// отец черный
+				grandpa->color = RED;		// дед красный
+				rightrotate(grandpa);		// правый поворот от деда
+			}
+		}
+		else  // если отец temp правый потомок деда, тоже самое зеркально отображенное...
+		{
+			if (grandpa->left != NULL)
+			{
+				uncle = grandpa->left;
+				if (uncle->color == RED)
+				{
+					temp->parent->color = BLACK;
+					uncle->color = BLACK;
+					grandpa->color = RED;
+					temp = grandpa;
+				}
+			}
+			else
+			{
+				if (temp->parent->left == temp)
+				{
+					temp = temp->parent;
+					rightrotate(temp);
+				}
+				temp->parent->color = BLACK;
+				grandpa->color = RED;
+				leftrotate(grandpa);
+			}
+		}
+		// сохраняем свойства корня
+		root->color = BLACK;
+		root->parent = NULL;
+	}
+}
+
+void Map::RBtree::remove(dataType data)
+{
+	if (root == NULL)
+	{
+		std::cout << "\nПустое дерево, нечего удалить!";
+		return;
+	}
+	Node* temp = root;
+	Node* lefttemp = NULL;
+	Node* righttemp = NULL;
+	bool found = false;
+	while (temp != NULL && found == false)  // ищем
+	{
+		if (temp->key == data)
+			found = true;
+		if (found == false)
+		{
+			if (temp->key < data)
+				temp = temp->right;
+			else
+				temp = temp->left;
+		}
+	}
+	if (found == false) // не нашли
+	{
+		std::cout << "\nТакого элемента нет в дереве!";
+		return;
+	}
+	else // нашли, удаляем
+	{
+		std::cout << "\nУдаленный элемент: " << temp->data;
+		std::cout << "\nКлюч: " << temp->key;
+		std::cout << "\nЦвет: ";
+		if (temp->color == BLACK)
+			std::cout << "Черный\n";
+		else
+			std::cout << "Красный\n";
+
+		if (temp->parent != NULL)
+			std::cout << "\nРодитель: " << temp->parent->data;
+		else
+			std::cout << "\nУ него нет родителя.  ";
+		if (temp->right != NULL)
+			std::cout << "\nПравый потомок: " << temp->right->data;
+		else
+			std::cout << "\nУ него нет правого потомка.  ";
+		if (temp->left != NULL)
+			std::cout << "\nЛевый потомок: " << temp->left->data;
+		else
+			std::cout << "\nУ него нет левого потомка.  ";
+
+		if (temp->left == NULL || temp->right == NULL)  // если хотя бы один потомок лист
+			lefttemp = temp;
+		else
+			lefttemp = successor(temp);
+		if (lefttemp->left != NULL)		// если левый потомок существует
+			righttemp = lefttemp->left;
+		else						// если нет
+		{
+			if (lefttemp->right != NULL)	// и при этом правый потомок тоже существует
+				righttemp = lefttemp->right;
+			else					// если нет
+				righttemp = NULL;
+		}
+		if (righttemp != NULL)		// после выше происходящего если q не лист то его отец это отец у тоже
+			righttemp->parent = lefttemp->parent;
+		if (lefttemp->parent == NULL)			// если нет родителя, то он корень
+			root = righttemp;
+		else							// иначе
+		{
+			if (lefttemp == lefttemp->parent->left)	// если lefttemp левый потомок отца
+				lefttemp->parent->left = righttemp;
+			else						// если правый
+				lefttemp->parent->right = righttemp;
+		}
+		if (lefttemp != temp)
+		{
+			temp->color = lefttemp->color;
+			temp->data = lefttemp->data;
+		}
+		if (lefttemp->color == BLACK)  // если у был черным, нужно балансировать
+			delfix(righttemp);
+		std::cout << "\nУзел был удален, дерево - сбалансировано!\n";
+	}
+
+}
+
+void Map::RBtree::clear()
+{
+	cl(root);
+}
+
+void Map::RBtree::cl(Node* temp)
+{
+	if (root == NULL)
+	{
+		std::cout << "\nМассив очищен";
+		return;
+	}
+	Node* leftn = NULL;
+	Node* rightn = NULL;
+
+	if (temp->left != NULL)
+		cl(temp->left);
+	if (temp->right != NULL)
+		cl(temp->right);
+
+	if (temp->left == NULL || temp->right == NULL)  // если хотя бы один потомок лист
+		leftn = temp;
+	else
+		leftn = successor(temp);
+	if (leftn->left != NULL)		// если левый потомок существует
+		rightn = leftn->left;
+	else						// если нет
+	{
+		if (leftn->right != NULL)	// и при этом правый потомок тоже существует
+			rightn = leftn->right;
+		else					// если нет
+			rightn = NULL;
+	}
+	if (rightn != NULL)		// после выше происходящего если q не лист то его отец это отец у тоже
+		rightn->parent = leftn->parent;
+	if (leftn->parent == NULL)			// если нет родителя, то он корень
+		root = rightn;
+	else							// иначе
+	{
+		if (leftn == leftn->parent->left)	// если у левый потомок отца
+			leftn->parent->left = rightn;
+		else						// если правый
+			leftn->parent->right = rightn;
+	}
+	if (leftn != temp)
+	{
+		temp->color = leftn->color;
+		temp->data = leftn->data;
+	}
+	if (leftn->color == BLACK)  // если у был черным, нужно балансировать
+		delfix(rightn);
+}
+
+void Map::RBtree::delfix(Node* temp)
+{
+	Node* uncle = NULL; // дядя
+	while (temp != root && temp->color == BLACK)	// пока не корень и не черный одновременно
+	{
+		if (temp->parent->left == temp)	// если р левый потомок
+		{
+			uncle = temp->parent->right;	// uncle - дядя
+			if (uncle->color == RED)	// если дядя красный
+			{
+				uncle->color = BLACK;		// дядя черный
+				temp->parent->color = RED;	// отец красный
+				leftrotate(temp->parent);	// левый поворот от отца
+				uncle = temp->parent->right;	// дядя стал правым потомком отца
+			}
+			if (uncle->right->color == BLACK && uncle->left->color == BLACK)  // племянники черные одновременно
+			{
+				uncle->color = RED; // тогда дядя красный
+				temp = temp->parent;
+			}
+			else
+			{
+				if (uncle->right->color == BLACK)	//если правый племянник черный
+				{
+					uncle->left->color = BLACK; // левый тоже будет
+					uncle->color = RED;			// дядя опять красный
+					rightrotate(uncle);			// правый поворот от дяди
+					uncle = temp->parent->right;	// дядя стал правым потомком отца
+				}
+				uncle->color = temp->parent->color;
+				temp->parent->color = BLACK;
+				uncle->right->color = BLACK;
+				leftrotate(temp->parent);
+				temp = root;
+			}
+		}
+		else  // если р правый потомок, аналогично зеркально отображенно
+		{
+			uncle = temp->parent->left;
+			if (uncle->color == RED)
+			{
+				uncle->color = BLACK;
+				temp->parent->color = RED;
+				rightrotate(temp->parent);
+				uncle = temp->parent->left;
+			}
+			if (uncle->left->color == BLACK && uncle->right->color == BLACK)
+			{
+				uncle->color = RED;
+				temp = temp->parent;
+			}
+			else
+			{
+				if (uncle->left->color == BLACK)
+				{
+					uncle->right->color = BLACK;
+					uncle->color = RED;
+					leftrotate(uncle);
+					uncle = temp->parent->left;
+				}
+				uncle->color = temp->parent->color;
+				temp->parent->color = BLACK;
+				uncle->left->color = BLACK;
+				rightrotate(temp->parent);
+				temp = root;
+			}
+		}
+		temp->color = BLACK;
+		root->color = BLACK;
+		root->parent = NULL;
+	}
+}
+
+void Map::RBtree::leftrotate(Node* lrotate)	// левый поворот
+{
+	if (lrotate->right == NULL)
+		return;
+	else
+	{
+		Node* temp = lrotate->right;
+		if (temp->left != NULL)
+		{
+			lrotate->right = temp->left;
+			temp->left->parent = lrotate;
+		}
+		else
+			lrotate->right = NULL;
+		if (lrotate->parent != NULL)
+			temp->parent = lrotate->parent;
+		if (lrotate->parent == NULL)
+			root = temp;
+		else
+		{
+			if (lrotate == lrotate->parent->left)
+				lrotate->parent->left = temp;
+			else
+				lrotate->parent->right = temp;
+		}
+		temp->left = lrotate;
+		lrotate->parent = temp;
+	}
+}
+void Map::RBtree::rightrotate(Node* rrotate)	// правый поворот
+{
+	if (rrotate->left == NULL)
+		return;
+	else
+	{
+		Node* temp = rrotate->left;
+		if (temp->right != NULL)
+		{
+			rrotate->left = temp->right;
+			temp->right->parent = rrotate;
+		}
+		else
+			rrotate->left = NULL;
+		if (rrotate->parent != NULL)
+			temp->parent = rrotate->parent;
+		if (rrotate->parent == NULL)
+			root = temp;
+		else
+		{
+			if (rrotate == rrotate->parent->left)
+				rrotate->parent->left = temp;
+			else
+				rrotate->parent->right = temp;
+		}
+		temp->right = rrotate;
+		rrotate->parent = temp;
+	}
+}
+
+Node* Map::RBtree::successor(Node* foo)	// от переданного узла возвращает возвращает 
+{
+	Node* temp = NULL;					// 1. на NULL если нет потомков; 
+	if (foo->left != NULL)			// 2. на правый последний элемент левого поддерева
+	{
+		temp = foo->left;
+		while (temp->right != NULL)
+			temp = temp->right;
+	}
+	else							// 2. на левый последний элемент правого поддерева
+	{
+		temp = foo->right;
+		while (temp->left != NULL)
+			temp = temp->left;
+	}
+	return temp;
+}
+
+bool Map::RBtree::print()
+{
+	return display(root);
+}
+
+bool Map::RBtree::display(Node* show)
+{
+	if (root == NULL)
+	{
+		std::cout << "\nДерево пусто!.";
+		return false;
+	}
+	if (show != NULL)
+	{
+		if (show == root)
+			std::cout << "\n Корень: ";
+		else
+			std::cout << " Узел: ";
+		std::cout << "\n\tДанные:\t\t" << show->data;
+		std::cout << "\n\tКлюч:\t\t" << show->key;
+		std::cout << "\n\tЦвет:\t";
+		if (show->color == BLACK)
+			std::cout << "\tЧерный";
+		else
+			std::cout << "\tКрасный";
+		if (show->parent != NULL)  // && show != root
+			std::cout << "\n\tРодитель:\t" << show->parent->data;
+		else
+			std::cout << "\n\tУ него нет родителя.";
+		if (show->right != NULL)
+			std::cout << "\n\tПравый потомок:\t" << show->right->data;
+		else
+			std::cout << "\n\tУ него нет правого потомка.";
+		if (show->left != NULL)
+			std::cout << "\n\tЛевый потомок:\t" << show->left->data;
+		else
+			std::cout << "\n\tУ него нет левого потомка.";
+
+		if (show->left)
+		{
+			std::cout << "\n Левый";
+			display(show->left);
+		}
+
+		if (show->right)
+		{
+			std::cout << "\n Правый";
+			display(show->right);
+		}
+		return true;
+
+	}
+}
+
+bool Map::RBtree::searchbool(dataType info)		// дополнение для поиска
+{
+	if (root == NULL)  //Дерево пусто!
+		return false;
+	Node* temp = root;
+	bool found = false;
+	while (temp != NULL && found == false)
+	{
+		if (temp->key == info)
+			found = true;
+		if (found == false)
+		{
+			if (temp->key < info)
+				temp = temp->right;
+			else
+				temp = temp->left;
+		}
+	}
+	if (found == false)
+		return false;	// не нашел 
+	else
+		return true;	// нашел 
+}
+
+
+bool Map::RBtree::find(dataType foo)
+{
+	if (root == NULL)
+	{
+		std::cout << "\nПустое дерево\n";
+		return false;
+	}
+	Node* temp = root;
+	bool found = false;
+	while (temp != NULL && found == false)
+	{
+		if (temp->key == foo)
+			found = true;
+		if (found == false)
+		{
+			if (temp->key < foo)
+				temp = temp->right;
+			else
+				temp = temp->left;
+		}
+	}
+	if (found == false)
+	{
+		std::cout << "\nЭлемент не найден!";
+		return found;
+	}
+	else
+	{
+		found = true;
+		std::cout << "\n Найденный элемент: ";
+		std::cout << "\n\tДанные:\t\t" << temp->data;
+		std::cout << "\n\tКлюч:\t\t" << temp->key;
+		std::cout << "\n\tЦвет:\t";
+		if (temp->color == BLACK)
+			std::cout << "\tЧерный";
+		else
+			std::cout << "\tКрасный";
+		if (temp->parent != NULL)
+			std::cout << "\n\tРодитель:\t" << temp->parent->data;
+		else
+			std::cout << "\n\tУ него нет родителя.";
+		if (temp->right != NULL)
+			std::cout << "\n\tПравый потомок:\t" << temp->right->data;
+		else
+			std::cout << "\n\tУ него нет правого потомка.";
+		if (temp->left != NULL)
+			std::cout << "\n\tЛевый потомок:\t" << temp->left->data;
+		else
+			std::cout << "\n\tУ него нет левого потомка.";
+		std::cout << std::endl;
+		return found;
+	}
+}
